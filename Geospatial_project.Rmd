@@ -1,0 +1,250 @@
+---
+title: "Geospatial project "
+output: html_document
+date: "2025-03-05"
+---
+Downloading libraries
+```{r}
+rm(list = ls())
+
+# Load libraries
+library(sf)
+library(tidyverse)
+library(ggplot2)
+library(leaflet)
+library(osmdata)
+library(raster)
+library(sp)
+library(ggspatial)
+library(rasterVis)
+```
+
+
+Loading data about forest loss in Japan
+
+```{r}
+
+# Load Forest Loss (Raster)
+forest_loss <- raster("/Users/admin/Desktop/Geospatial/Geospatial project/japan_forest_loss.tif")
+```
+Plotting forest loss
+
+
+
+
+```{r}
+plot(forest_loss)
+
+```
+```{r}
+# Define color scheme
+my_colors <- colorRampPalette(c("blue", "green", "yellow", "red"))
+
+# High-quality raster plot
+levelplot(forest_loss, col.regions = my_colors(100), main = "Forest Loss in Japan")
+```
+
+
+Loading data about urbanisation in Japan in 2000 and 2020 and plotting the urban change 
+```{r}
+# Load urban cover raster (2000 & 2023)
+urban_2000 <- raster("/Users/admin/Desktop/Geospatial/Geospatial project/jpn_ppp_2000.tif")
+urban_2020 <- raster("/Users/admin/Desktop/Geospatial/Geospatial project/jpn_ppp_2020.tif")
+
+# Compute Urban Expansion
+urban_change <- urban_2020 - urban_2000
+```
+
+
+```{r}
+# Plot
+levelplot(urban_2000, col.regions = my_colors(100), main = "Urban expansion from 2000 to 2020 in Japan")
+
+```
+```{r}
+# Plot
+levelplot(urban_2020, col.regions = my_colors(100), main = "Urban expansion from 2000 to 2020 in Japan")
+
+```
+```{r}
+# Plot
+levelplot(urban_change, col.regions = my_colors(100), main = "Urban expansion from 2000 to 2020 in Japan")
+
+```
+
+
+Loading the data about lakes and rivers in Japan
+```{r}
+library(sf)
+
+# Load HydroLAKES for Japan (subset of global dataset)
+hydrolakes <- st_read("/Users/admin/Desktop/Geospatial/Geospatial project/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10.shp")
+
+# Filter only lakes in Japan (assuming dataset has country codes)
+japan_lakes <- hydrolakes[hydrolakes$Country == "Japan", ]
+# Check if dataset is empty
+
+
+
+```
+
+We might not need hydroRIVERSbecause we will focul only on one main rivers later
+
+```{r}
+
+# Load HydroRIVERS for ASIA (subset of global dataset)
+hydrorivres <- st_read("/Users/admin/Desktop/Geospatial/Geospatial project/HydroRIVERS_v10_as_shp/HydroRIVERS_v10_as_shp/HydroRIVERS_v10_as.shp")
+
+# # Filter only lakes in Japan (assuming dataset has country codes)
+# japan_rivers <- hydroriverss[hydrorivers$Country == "Japan", ]
+# 
+
+```
+
+```{r}
+# # Plot Asian Rivers
+# Load Japan’s boundary polygon (Shapefile or GeoJSON)
+japan_boundary <- st_read("/Users/admin/Desktop/Geospatial/Geospatial project/ne_10m_admin_0_countries/ne_10m_admin_0_countries.shp")
+japan_boundary <- japan_boundary %>%
+  filter(ISO_A3 == "JPN")  # Adjust column name if needed
+```
+These block of code also might not be needed as we don't use hydroRIVERS
+
+```{r}
+# Ensure both datasets have the same CRS
+hydro_rivers <- st_transform(hydrorivres, crs = st_crs(japan_boundary))
+# Perform spatial intersection (clip rivers by Japan boundary)
+japan_rivers <- st_intersection(hydro_rivers, japan_boundary)
+
+# Plot the extracted rivers
+# Plot the extracted rivers
+ggplot() +
+  # Plot Japan Boundary
+  geom_sf(data = japan_boundary, fill = NA, color = "black", size = 0.8) +
+  
+  # Plot Rivers
+  geom_sf(data = japan_rivers, color = "blue", size = 0.6) +
+  
+  # Map Title & Theme
+  labs(title = "Rivers in Japan") +
+  theme_minimal()
+
+
+```
+```{r}
+nat_earth_rivers <- st_read("/Users/admin/Desktop/Geospatial/Geospatial project/ne_50m_rivers_lake_centerlines/ne_50m_rivers_lake_centerlines.shp") 
+japan_rivers_2 <- st_intersection(nat_earth_rivers, japan_boundary)
+# Create the map with roads, railroads, and boundaries
+```
+
+Lakes and main river in Japan
+```{r}
+ggplot() +
+  # Plot Japan Boundary
+  geom_sf(data = japan_boundary, fill = NA, color = "black", size = 0.8) +
+  
+  # Plot Rivers
+  geom_sf(data = japan_rivers_2, color = "blue", size = 0.6) +
+  geom_sf(data = japan_lakes, color = "blue", size = 0.6) +
+  # Map Title & Theme
+  labs(title = "Rivers in Japan") +
+  theme_minimal()
+
+```
+
+
+Loading data about protected areas 
+```{r}
+# Load the global WDPA dataset (Shapefile)
+wdpa_global <- st_read("/Users/admin/Desktop/Geospatial/Geospatial project/WDPA_Mar2025_Public_shp/WDPA_Mar2025_Public_shp_0/WDPA_Mar2025_Public_shp-polygons.shp")
+
+# Check the column names to find the country field
+colnames(wdpa_global)
+
+```
+Filtering Japan 
+```{r}
+protected_areas_japan <- wdpa_global %>%
+  filter(ISO3 == "JPN")  # Adjust column name if needed
+```
+
+Plotting the protected areas in japan 
+```{r}
+# Plot the filtered dataset
+ggplot() +
+  # Plot Japan Boundary
+  geom_sf(data = japan_boundary, fill = NA, color = "black", size = 0.8) +
+  
+  # Plot Roads
+  geom_sf(data = protected_areas_japan, color = "green", size = 0.6, alpha = 0.8) +
+  
+  # Map Title & Theme
+  labs(title = "Protected areas in Japan") +
+  theme_minimal()
+```
+Roads and Railroads in Japan 
+```{r}
+roads <- st_read("/Users/admin/Desktop/Geospatial/Geospatial project/ne_10m_roads/ne_10m_roads.shp")
+japan_roads <- st_intersection(roads, japan_boundary)
+railroads <- st_read("/Users/admin/Desktop/Geospatial/Geospatial project/ne_10m_railroads/ne_10m_railroads.shp")
+japan_railroads <- st_intersection(railroads, japan_boundary)
+```
+
+
+
+```{r}
+# Create the map with roads, railroads, and boundaries
+ggplot() +
+  # Plot Japan Boundary
+  geom_sf(data = japan_boundary, fill = NA, color = "black", size = 0.8) +
+  
+  # Plot Roads
+  geom_sf(data = japan_roads, color = "gray", size = 0.6, alpha = 0.8) +
+  
+  # Plot Railroads
+  
+  geom_sf(data = japan_railroads, color = "blue", size = 0.6, linetype = "dashed") +
+  
+  # Map Title & Theme
+  labs(title = "Roads and Railroads in Japan") +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+populated_places <- st_read("/Users/admin/Desktop/Geospatial/Geospatial project/ne_50m_populated_places/ne_50m_populated_places.shp")
+japan_populated_places <- st_intersection(populated_places, japan_boundary)
+
+```
+```{r}
+# Create the map with roads, railroads, and boundaries
+ggplot() +
+  # Plot Japan Boundary
+  geom_sf(data = japan_boundary, fill = NA, color = "black", size = 0.8) +
+  
+  # Plot Roads
+  geom_sf(data = japan_populated_places, color = "red", size = 0.4, alpha = 0.8) +
+  
+  # Map Title & Theme
+  labs(title = "Populated places in Japan") +
+  theme_minimal()
+```
+```{r}
+# Find intersections
+populated_protected_overlap <- st_intersection(japan_populated_places, protected_areas_japan)
+
+# Plot affected areas
+ggplot() +
+  geom_sf(data = protected_areas_japan, fill = "green", alpha = 0.3) +
+  geom_sf(data = populated_protected_overlap, fill = "red", alpha = 0.5) +
+  labs(title = "Urban Expansion Over Protected Areas") +
+  theme_minimal()
+
+```
+```{r}
+protected_areas_japan <- st_make_valid(protected_areas_japan)
+```
+
+
